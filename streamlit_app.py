@@ -127,7 +127,8 @@ class MonteCarloSimulation:
         interest_rate: float,
         n_simulations: int = 10000,
         n_steps: int = 252,  # Daily steps for 1 year
-        use_antithetic: bool = True
+        use_antithetic: bool = True,
+        use_control_variates: bool = False
     ):
         self.time_to_maturity = time_to_maturity
         self.strike = strike
@@ -137,6 +138,7 @@ class MonteCarloSimulation:
         self.n_simulations = n_simulations
         self.n_steps = n_steps
         self.use_antithetic = use_antithetic
+        self.use_control_variates = use_control_variates
         self.dt = time_to_maturity / n_steps
 
     def generate_paths(self):
@@ -171,6 +173,34 @@ class MonteCarloSimulation:
         call_payoffs = np.maximum(final_prices - self.strike, 0)
         put_payoffs = np.maximum(self.strike - final_prices, 0)
 
+        # Apply control variates if requested
+        if self.use_control_variates:
+            # Create a Black-Scholes model to get analytical prices
+            bs_model = BlackScholes(
+                time_to_maturity=self.time_to_maturity,
+                strike=self.strike,
+                current_price=self.current_price,
+                volatility=self.volatility,
+                interest_rate=self.interest_rate
+            )
+            analytical_call, analytical_put = bs_model.calculate_prices()
+            
+            # Calculate expected terminal stock price under risk-neutral measure
+            expected_price = self.current_price * np.exp(self.interest_rate * self.time_to_maturity)
+            
+            # Use stock price itself as control variate
+            # Calculate correlation between final price and option payoff
+            call_beta = np.cov(final_prices, call_payoffs)[0, 1] / np.var(final_prices)
+            put_beta = np.cov(final_prices, put_payoffs)[0, 1] / np.var(final_prices)
+            
+            # Apply control variate adjustment
+            call_cv_payoffs = call_payoffs - call_beta * (final_prices - expected_price)
+            put_cv_payoffs = put_payoffs - put_beta * (final_prices - expected_price)
+            
+            # Replace original payoffs with control variate adjusted payoffs
+            call_payoffs = call_cv_payoffs
+            put_payoffs = put_cv_payoffs
+
         # Discount payoffs
         discount_factor = np.exp(-self.interest_rate * self.time_to_maturity)
         call_price = np.mean(call_payoffs) * discount_factor
@@ -202,7 +232,22 @@ with st.sidebar:
     st.markdown("---")
     st.subheader("Monte Carlo Parameters")
     n_simulations = st.number_input("Number of Simulations", min_value=1000, value=10000, step=1000)
+    time_steps_options = {
+        "Weekly (50 steps per year)": 50,
+        "Daily (252 steps per year)": 252,
+        "High-Resolution (1000 steps per year)": 1000
+    }
+    time_steps_selection = st.selectbox(
+        "Time Step Granularity",
+        options=list(time_steps_options.keys()),
+        index=1  # Default to daily
+    )
+    n_steps = time_steps_options[time_steps_selection]
+    
+    st.subheader("Variance Reduction Techniques")
     use_antithetic = st.checkbox("Use Antithetic Variates", value=True)
+    use_control_variates = st.checkbox("Use Control Variates", value=False, 
+                                      help="Uses analytical Black-Scholes as control to reduce variance")
 
     st.markdown("---")
     calculate_btn = st.button('Heatmap Parameters')
@@ -325,7 +370,9 @@ mc_model = MonteCarloSimulation(
     volatility=volatility,
     interest_rate=interest_rate,
     n_simulations=n_simulations,
-    use_antithetic=use_antithetic
+    n_steps=n_steps,
+    use_antithetic=use_antithetic,
+    use_control_variates=use_control_variates
 )
 mc_call, mc_put, mc_call_std_err, mc_put_std_err = mc_model.calculate_prices()
 
@@ -339,6 +386,58 @@ comparison_data = {
 }
 comparison_df = pd.DataFrame(comparison_data)
 st.table(comparison_df)
+
+# Add bar chart with error bars comparing the results
+st.subheader("Price Comparison with Error Bars")
+
+# Create data for the bar chart
+methods = ['Analytical', 'Monte Carlo']
+call_prices = [analytical_call, mc_call]
+put_prices = [analytical_put, mc_put]
+# Create error arrays for analytical (zero) and Monte Carlo
+call_errors = [0, mc_call_std_err]
+put_errors = [0, mc_put_std_err]
+
+# Create the figure with two subplots side by side
+fig = go.Figure()
+
+# Add Call Option bars
+fig.add_trace(go.Bar(
+    x=methods,
+    y=call_prices,
+    name='Call Option',
+    error_y=dict(
+        type='data',
+        array=call_errors,
+        visible=True
+    ),
+    marker_color='lightgreen'
+))
+
+# Add Put Option bars
+fig.add_trace(go.Bar(
+    x=methods,
+    y=put_prices,
+    name='Put Option',
+    error_y=dict(
+        type='data',
+        array=put_errors,
+        visible=True
+    ),
+    marker_color='lightcoral'
+))
+
+# Update layout
+fig.update_layout(
+    title='Analytical vs. Monte Carlo Option Prices with Standard Errors',
+    xaxis_title='Method',
+    yaxis_title='Option Price',
+    barmode='group',
+    height=500,
+    width=800
+)
+
+st.plotly_chart(fig)
 
 # Add visualization of price paths
 st.subheader("Sample Price Paths")

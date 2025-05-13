@@ -1,0 +1,3 @@
+@echo off
+echo Starting Black-Scholes App...
+streamlit run streamlit_app.py --server.port 8501 
