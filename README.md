@@ -46,8 +46,12 @@ Visual Output
 
     Comparison Charts: Bar plots comparing analytical and Monte Carlo pricing results, with standard error bars.
 
-Setup to run it locally:
-git clone https://github.com/nassim747/Black_Scholes.git
-cd Black_Scholes
-pip install -r requirements.txt
-streamlit run streamlit_app.py
+To run the application locally:
+
+    git clone https://github.com/yourusername/black-scholes-simulator.git
+
+    cd black-scholes-simulator
+
+    pip install -r requirements.txt
+
+    streamlit run streamlit_app.py
