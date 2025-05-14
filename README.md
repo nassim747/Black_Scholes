@@ -48,9 +48,9 @@ Visual Output
 
 To run the application locally:
 
-    git clone https://github.com/yourusername/black-scholes-simulator.git
+    git clone https://github.com/nassim747/Black_Scholes.git
 
-    cd black-scholes-simulator
+    cd Black_Scholes
 
     pip install -r requirements.txt
 
