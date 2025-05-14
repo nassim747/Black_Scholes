@@ -1,4 +1,7 @@
 # Black-Scholes Option Pricing simulator
+
+[![Streamlit App](https://img.shields.io/badge/Launch-App-green?logo=streamlit)](https://ameur-blackscholes.streamlit.app/)
+
 An interactive web-based application for pricing European options using both the analytical Black-Scholes formula and Monte Carlo simulation. This tool allows users to visualize and compare theoretical and numerical results, explore the sensitivity of option prices to key parameters, and apply variance reduction techniques in a user-friendly environment.
 
 # Overview
